@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Chatbot</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+       html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(180deg, #f5f7fa, #c3cfe2);
+    color: #333;
+}
+.container {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative; /* Ensure the container is positioned correctly */
+}
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+        }
+        #movieName {
+    position: relative; /* Adjust if needed */
+    z-index: 1; /* Ensure it is above other elements */
+}
+
+        .form-inline {
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .form-control {
+            border-radius: 0.25rem;
+            box-shadow: none;
+        }
+        .btn-custom {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 0.25rem;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .btn-custom:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        #recommendations {
+            margin-top: 30px;
+        }
+        .movie-element {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .movie-element:hover {
+            transform: scale(1.03);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .movie-element img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            transition: opacity 0.3s;
+        }
+        .movie-info {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            pointer-events: none;
+        }
+        .btn-custom {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 0.25rem;
+    transition: background-color 0.3s, transform 0.3s;
+}
+.btn-custom:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
+
+        .movie-element:hover .movie-info {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .positive-sentiment .movie-info {
+            background-color: rgba(0, 128, 0, 0.7);
+        }
+        .neutral-sentiment .movie-info {
+            background-color: rgba(128, 128, 128, 0.7);
+        }
+        .negative-sentiment .movie-info {
+            background-color: rgba(255, 0, 0, 0.7);
+        }
+        .movie-info a {
+            color: #00d2d3;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .movie-info a:hover {
+            text-decoration: underline;
+        }
+        .splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* High z-index to overlay */
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none; /* Prevent interaction while showing splash screen */
+}
+
+.splash-screen.show {
+    opacity: 1;
+    pointer-events: auto; /* Allow interaction when splash screen is visible */
+}
+input, textarea {
+    pointer-events: auto; /* Ensure the input field is interactive */
+}
+
+        .progress-bar-container {
+            width: 80%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-screen" id="splashScreen">
+        <div class="progress-bar-container">
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+        </div>
+        <div>Loading recommendations, please wait...</div>
+    </div>
+    <div class="container">
+        <h1>Movie Recommendation System</h1>
+        <form id="movie-form" class="form-inline">
+            <div class="form-group mx-sm-3 mb-2">
+                <input type="text" id="movieName" name="movie_name" class="form-control" placeholder="Enter movie name" required>
+            </div>
+            <button type="submit" class="btn btn-custom mb-2">Get Recommendations</button>
+        </form>
+        <div id="recommendations" class="row"></div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $('#movie-form').submit(function(event) {
+            event.preventDefault(); // Prevent the default form submission
+            const movieName = $('#movieName').val().trim();
+            if (movieName) {
+                $('#splashScreen').addClass('show'); // Show splash screen
+                
+                $.ajax({
+                    url: '/recommend',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ movie_name: movieName }),
+                    success: function(response) {
+                        $('#recommendations').empty();
+                        if (response.length === 0) {
+                            $('#recommendations').html('<p class="text-center">No recommendations found.</p>');
+                        } else {
+                            response.forEach(function(movie) {
+                                const sentimentClass = movie.average_sentiment > 0.05 ? 'positive-sentiment' : (movie.average_sentiment < -0.05 ? 'negative-sentiment' : 'neutral-sentiment');
+                                $('#recommendations').append(`
+                                    <div class="col-md-4">
+                                        <div class="movie-element ${sentimentClass}">
+                                            <img src="${movie.poster_path}" alt="${movie.title} Poster">
+                                            <div class="movie-info">
+                                                <h4>${movie.title}</h4>
+                                                <p>Duration: ${movie.duration}</p>
+                                                <p>Lead Actor: ${movie.lead_actor}</p>
+                                                <a href="${movie.trailer_link}" target="_blank">Watch Trailer</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `);
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#recommendations').html('<p class="text-center">Failed to fetch recommendations. Please try again later.</p>');
+                    },
+                    complete: function() {
+                        $('#splashScreen').removeClass('show'); // Hide splash screen
+                    }
+                });
+            } else {
+                alert("Please enter a movie name.");
+            }
+        });
+    </script>
+</body>
+</html>
